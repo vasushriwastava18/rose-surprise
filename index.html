@@ -1,1 +1,247 @@
-# rose-surprise
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A Rose For You 🌹</title>
+
+<style>
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #08050b;
+  color: white;
+  font-family: Georgia, serif;
+  min-height: 100vh;
+  overflow: hidden;
+}
+
+.container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 15px;
+}
+
+h1 {
+  color: #ffb5ca;
+  font-size: 30px;
+  margin-bottom: 8px;
+  text-shadow: 0 0 20px #e52b62;
+}
+
+p {
+  color: #d8bdca;
+  font-size: 15px;
+  margin-bottom: 10px;
+}
+
+canvas {
+  width: min(95vw, 480px);
+  height: min(65vh, 480px);
+}
+
+button {
+  padding: 13px 28px;
+  border: 1px solid #ff719a;
+  border-radius: 30px;
+  background: #8d1740;
+  color: white;
+  font-size: 16px;
+  cursor: pointer;
+  margin-top: 12px;
+}
+
+button:active {
+  transform: scale(.95);
+}
+
+#message {
+  margin-top: 18px;
+  color: #ffb5ca;
+  font-size: 19px;
+  opacity: 0;
+  transition: opacity 2s;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+  <h1>A Rose For You 🌹</h1>
+  <p>Something beautiful is blooming...</p>
+
+  <canvas id="rose"></canvas>
+
+  <button onclick="startRose()">Grow My Rose 🌹</button>
+
+  <div id="message">
+    You deserve all the beautiful things in life ❤️
+  </div>
+</div>
+
+<script>
+const canvas = document.getElementById("rose");
+const ctx = canvas.getContext("2d");
+
+let particles = [];
+let animationStarted = false;
+
+const flowerSVG = `
+<svg xmlns="http://www.w3.org/2000/svg"
+width="400" height="440" viewBox="0 0 400 440">
+
+<defs>
+ <radialGradient id="petal">
+  <stop offset="0%" stop-color="#ff9aaf"/>
+  <stop offset="55%" stop-color="#d91c50"/>
+  <stop offset="100%" stop-color="#62051f"/>
+ </radialGradient>
+</defs>
+
+<!-- Stem -->
+<path d="M200 205 Q190 290 205 410"
+stroke="#278b49" stroke-width="9" fill="none"/>
+
+<!-- Leaves -->
+<path d="M201 310 Q125 255 112 320 Q155 350 201 310"
+fill="#238447"/>
+<path d="M202 350 Q265 285 290 340 Q252 370 202 350"
+fill="#176d37"/>
+
+<!-- Rose petals -->
+<g fill="url(#petal)" stroke="#ff6889" stroke-width="2">
+ <ellipse cx="200" cy="120" rx="55" ry="75"/>
+ <ellipse cx="150" cy="145" rx="55" ry="65" transform="rotate(-40 150 145)"/>
+ <ellipse cx="250" cy="145" rx="55" ry="65" transform="rotate(40 250 145)"/>
+ <ellipse cx="135" cy="190" rx="55" ry="55" transform="rotate(-60 135 190)"/>
+ <ellipse cx="265" cy="190" rx="55" ry="55" transform="rotate(60 265 190)"/>
+ <ellipse cx="200" cy="195" rx="65" ry="55"/>
+</g>
+
+<!-- Inner petals -->
+<g fill="#a80c38" stroke="#ff809c" stroke-width="2">
+ <ellipse cx="180" cy="150" rx="32" ry="42" transform="rotate(-30 180 150)"/>
+ <ellipse cx="220" cy="150" rx="32" ry="42" transform="rotate(30 220 150)"/>
+ <ellipse cx="200" cy="175" rx="34" ry="38"/>
+</g>
+
+<!-- Center -->
+<circle cx="200" cy="160" r="16" fill="#70051f"/>
+</svg>`;
+
+function resize() {
+  const rect = canvas.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = rect.width * dpr;
+  canvas.height = rect.height * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+
+function createRose() {
+  resize();
+
+  const img = new Image();
+  const blob = new Blob([flowerSVG], {
+    type: "image/svg+xml"
+  });
+  const url = URL.createObjectURL(blob);
+
+  img.onload = () => {
+    const w = canvas.width;
+    const h = canvas.height;
+
+    const off = document.createElement("canvas");
+    off.width = 400;
+    off.height = 440;
+
+    const octx = off.getContext("2d");
+    octx.drawImage(img, 0, 0);
+
+    const pixels = octx.getImageData(0, 0, 400, 440).data;
+
+    const scale = Math.min(w / 400, h / 440) * 0.85;
+    const ox = (w / (window.devicePixelRatio || 1) - 400 * scale) / 2;
+    const oy = (h / (window.devicePixelRatio || 1) - 440 * scale) / 2;
+
+    particles = [];
+
+    for (let y = 0; y < 440; y += 3) {
+      for (let x = 0; x < 400; x += 3) {
+        const i = (y * 400 + x) * 4;
+
+        if (pixels[i + 3] > 100) {
+          particles.push({
+            x: Math.random() * 500,
+            y: Math.random() * 500,
+            tx: ox + x * scale,
+            ty: oy + y * scale,
+            color: `rgb(${pixels[i]},${pixels[i+1]},${pixels[i+2]})`,
+            size: Math.random() * 1.8 + 1
+          });
+        }
+      }
+    }
+
+    URL.revokeObjectURL(url);
+    animate();
+  };
+
+  img.src = url;
+}
+
+function animate() {
+  const w = canvas.width / (window.devicePixelRatio || 1);
+  const h = canvas.height / (window.devicePixelRatio || 1);
+
+  ctx.clearRect(0, 0, w, h);
+
+  let complete = true;
+
+  particles.forEach(p => {
+    p.x += (p.tx - p.x) * 0.045;
+    p.y += (p.ty - p.y) * 0.045;
+
+    if (Math.abs(p.tx-p.x) > 1 ||
+        Math.abs(p.ty-p.y) > 1) {
+      complete = false;
+    }
+
+    ctx.beginPath();
+    ctx.fillStyle = p.color;
+    ctx.shadowBlur = 7;
+    ctx.shadowColor = p.color;
+    ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+    ctx.fill();
+  });
+
+  ctx.shadowBlur = 0;
+
+  if (complete) {
+    document.getElementById("message").style.opacity = 1;
+  }
+
+  requestAnimationFrame(animate);
+}
+
+function startRose() {
+  document.getElementById("message").style.opacity = 0;
+  particles = [];
+  createRose();
+}
+
+createRose();
+</script>
+
+</body>
+</html>
+
